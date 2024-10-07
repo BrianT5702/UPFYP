@@ -8,7 +8,7 @@ def create_room():
     data = request.get_json()
     new_room = Room(
         height=data['height'],
-        length=data['length'],
+        depth=data['depth'],
         width=data['width'],
         door_type=data.get('door_type'),
         cooler_type=data.get('cooler_type'),
@@ -21,4 +21,4 @@ def create_room():
 @room_bp.route('/rooms', methods=['GET'])
 def get_rooms():
     rooms = Room.query.all()
-    return jsonify([{"id": room.id, "height": room.height, "length": room.length, "width": room.width} for room in rooms])
+    return jsonify([{"id": room.id, "height": room.height, "depth": room.depth, "width": room.width} for room in rooms])

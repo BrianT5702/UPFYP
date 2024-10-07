@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:5702Tci123@localhost/cold_room_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['STATIC_FOLDER'] = 'C:/Users/brian/OneDrive/Desktop/UPFYP/Start/cold_room_project/models'
+app.config['STATIC_FOLDER'] = 'C:/Users/brian/OneDrive/Desktop/UPFYP/Start/cold_room_project/models'  # Ensure this path is correct
 db = SQLAlchemy(app)
 
 # Enable CORS for the entire app
@@ -20,20 +20,20 @@ def home():
 @app.route('/create_model', methods=['POST'])
 def create_model():
     data = request.get_json()
-    length = data['length']
-    width = data['width']
-    height = data['height']
-    unit = data['unit']  # Get the unit
+    depth = data['depth']  # Z-axis
+    width = data['width']   # X-axis
+    height = data['height']  # Y-axis
+    unit = data['unit']  # Get the measurement unit
 
-    # Handle different units
+    # Convert measurements to mm if needed
     if unit == 'cm':
-        length *= 10  # Convert to mm
-        width *= 10   # Convert to mm
-        height *= 10  # Convert to mm
+        depth *= 10
+        width *= 10
+        height *= 10
     elif unit == 'inch':
-        length *= 25.4  # Convert to mm
-        width *= 25.4   # Convert to mm
-        height *= 25.4  # Convert to mm
+        depth *= 25.4
+        width *= 25.4
+        height *= 25.4
 
     # Command to run Blender with the script
     blender_command = [
@@ -41,9 +41,9 @@ def create_model():
         "--background",
         "--python", "create_cold_room.py",
         "--",
-        "--length", str(length),
-        "--width", str(width),
-        "--height", str(height)
+        "--width", str(width),   # Pass width as x-axis
+        "--height", str(height),  # Pass height as y-axis
+        "--depth", str(depth)     # Pass depth as z-axis
     ]
 
     # Execute the command
