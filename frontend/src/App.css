@@ -1,0 +1,32 @@
+.App {
+  text-align: center;
+}
+
+.toolbox {
+  margin: 20px;
+}
+
+.tool {
+  display: inline-block;
+  padding: 10px;
+  border: 1px solid #000;
+  margin: 5px;
+  cursor: grab;
+}
+
+.canvas {
+  width: 80%;
+  height: 600px;
+  border: 1px solid #000;
+  position: relative;
+  margin: 20px auto;
+  background: #f0f0f0; /* Light background for visibility */
+}
+
+.element {
+  padding: 5px;
+  background: #007bff;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+}
