@@ -21,19 +21,19 @@ function App() {
     };
 
     const createRoomOverview = async () => {
-        const { height, depth, width } = roomDimensions;
+        const { height, depth, width, unit } = roomDimensions;
         if (!height || !depth || !width) {
             alert('Please enter valid dimensions for the room.');
             return;
         }
-
+    
         // Make a request to the Flask backend to create the model
         try {
             const response = await axios.post('http://127.0.0.1:5000/create_model', {
                 height: parseFloat(height),
                 depth: parseFloat(depth),
                 width: parseFloat(width),
-                unit: roomDimensions.unit // Send the measurement unit
+                unit: roomDimensions.unit // Ensure the unit is included
             });
             console.log(response.data);
             setModelCreated(true); // Set to true once the model is created
@@ -41,12 +41,12 @@ function App() {
             console.error('Error creating model:', error);
             alert('Failed to create model.');
         }
-    };
+    };    
 
     return (
         <div className="App">
             <h1>Create Cold Room Model</h1>
-            <div>
+            <div className="input-form">
                 <h3>Room Dimensions</h3>
                 <label>
                     Height (Y-axis):

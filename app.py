@@ -43,7 +43,8 @@ def create_model():
         "--",
         "--width", str(width),   # Pass width as x-axis
         "--height", str(height),  # Pass height as y-axis
-        "--depth", str(depth)     # Pass depth as z-axis
+        "--depth", str(depth),    # Pass depth as z-axis
+        "--unit", unit            # Pass unit of measurement
     ]
 
     # Execute the command

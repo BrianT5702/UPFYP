@@ -1,5 +1,45 @@
 .App {
   text-align: center;
+  font-family: 'Arial', sans-serif; /* Use a professional font */
+  background-color: #f4f4f4; /* Light background for better visibility */
+  padding: 20px; /* Add padding around the app */
+}
+
+h1 {
+  color: #333; /* Dark color for headings */
+}
+
+h3 {
+  color: #555; /* Lighter dark color for sub-headings */
+}
+
+.input-form {
+  background-color: #fff; /* White background for the form */
+  padding: 20px; /* Add padding */
+  border-radius: 5px; /* Rounded corners */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Soft shadow */
+  margin-bottom: 20px; /* Space below the form */
+}
+
+input, select {
+  padding: 10px; /* Add padding for inputs */
+  margin: 5px; /* Space between elements */
+  border: 1px solid #ccc; /* Light border for inputs */
+  border-radius: 4px; /* Rounded corners */
+  width: 200px; /* Fixed width for inputs */
+}
+
+button {
+  padding: 10px 15px; /* Add padding */
+  background-color: #007bff; /* Bootstrap primary color */
+  color: white; /* White text color */
+  border: none; /* Remove border */
+  border-radius: 4px; /* Rounded corners */
+  cursor: pointer; /* Pointer on hover */
+}
+
+button:hover {
+  background-color: #0056b3; /* Darker blue on hover */
 }
 
 .toolbox {
