@@ -1,116 +1,127 @@
-import React, { useState, useEffect } from 'react';
-import { Canvas, useLoader, useThree } from '@react-three/fiber';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import { PerspectiveCamera, OrbitControls } from '@react-three/drei';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { OrbitControls, Grid, Box } from '@react-three/drei'; // Import Box from drei
 import * as THREE from 'three';
-import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
-import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
 
-// Component for loading and rendering the model
-const Model = ({ dimensions, onFaceClick }) => {
-    const [gltf, setGltf] = useState(null);
-    
-    useEffect(() => {
-        const loader = new GLTFLoader();
-        loader.load('http://127.0.0.1:5000/models/cold_room_model.glb', (gltf) => {
-            setGltf(gltf);
-        });
-    }, []); // Load model only once
+const Room = ({ room, setModelDimensions }) => {
+  const [model, setModel] = useState(null);
+  const groupRef = useRef();
 
-    const { camera } = useThree(); // Access the camera
+  useEffect(() => {
+    if (room && room.filename) {
+      const url = `http://localhost:5000/models/${room.filename}?t=${Date.now()}`;
 
-    useEffect(() => {
-        if (gltf) {
-            gltf.scene.traverse((child) => {
-                if (child.isMesh) {
-                    // Scale the model based on the input dimensions
-                    child.scale.set(dimensions.width / 1000, dimensions.height / 1000, dimensions.depth / 1000); // Assuming dimensions are in mm
-
-                    // Center the model in the scene
-                    child.position.set(0, (dimensions.height / 2000), 0); // Half of height to place it on the grid
-
-                    // Calculate the bounding box
-                    const boundingBox = new THREE.Box3().setFromObject(child);
-                    const size = boundingBox.getSize(new THREE.Vector3());
-
-                    // Set the camera position based on model size
-                    const cameraDistance = Math.max(size.x, size.y, size.z) * 2; // Adjust the multiplier as needed
-                    camera.position.set(0, cameraDistance, cameraDistance); // Position the camera above and away from the model
-                    camera.lookAt(boundingBox.getCenter(new THREE.Vector3())); // Look at the center of the model
-                }
-            });
+      new GLTFLoader().load(
+        url,
+        (gltf) => {
+          console.log('Model loaded successfully:', gltf);
+          setModel(gltf.scene);
+        },
+        undefined,
+        (err) => {
+          console.error('Failed to load model:', err);
         }
-    }, [gltf, dimensions, camera]); // Include camera in the dependency array
-
-    if (!gltf) {
-        return (
-            <Box args={[1, 1, 1]} position={[0, 0.5, 0]}> {/* Use Box component */}
-                <meshStandardMaterial color="gray" />
-            </Box>
-        ); // Placeholder while loading
+      );
     }
+  }, [room]);
 
-    return <primitive object={gltf.scene} onClick={onFaceClick} />;
+  useEffect(() => {
+    if (model && groupRef.current) {
+      // Clear previous content
+      while (groupRef.current.children.length) {
+        groupRef.current.remove(groupRef.current.children[0]);
+      }
+
+      // Add the new model
+      groupRef.current.add(model);
+
+      // Calculate bounding box to find dimensions
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+
+      // Set the position to ensure the model is always centered in the scene
+      model.position.set(-center.x, -center.y, -center.z);
+
+      // Pass dimensions to parent component
+      setModelDimensions({ size, center });
+    }
+  }, [model]);
+
+  return <group ref={groupRef} />;
 };
 
-// Component to handle mouse click events and display text
-const ClickableModel = ({ dimensions }) => {
-    const { camera, scene } = useThree();
-    const [textMesh, setTextMesh] = useState(null);
+const CameraController = ({ dimensions, isInteriorView }) => {
+  const { camera } = useThree();
+  const controlsRef = useRef();
 
-    const handleFaceClick = (event) => {
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
+  useEffect(() => {
+    if (dimensions && controlsRef.current) {
+      const { size, center } = dimensions;
+      if (isInteriorView) {
+        // Set camera to interior view
+        camera.position.set(center.x, size.y / 2, center.z);
+        controlsRef.current.target.set(center.x, size.y / 2, center.z);
+      } else {
+        // Set camera to exterior view
+        const distance = Math.max(size.x, size.y, size.z) * 1.5;
+        camera.position.set(distance, distance, distance);
+        controlsRef.current.target.set(0, 0, 0);
+      }
+      controlsRef.current.update();
+    }
+  }, [dimensions, isInteriorView]);
 
-        // Get mouse position in normalized device coordinates
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-        raycaster.setFromCamera(mouse, camera); // Use the camera from useThree
-
-        const intersects = raycaster.intersectObjects(scene.children, true);
-
-        if (intersects.length > 0) {
-            const face = intersects[0];
-            const { point } = face;
-
-            // Create or update the text mesh
-            if (!textMesh) {
-                const fontLoader = new FontLoader();
-                fontLoader.load('/path/to/font.json', (font) => {
-                    const textGeometry = new TextGeometry(`Width: ${dimensions.width.toFixed(2)} m`, {
-                        font: font,
-                        size: 0.5,
-                        height: 0.1,
-                    });
-                    const textMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
-                    const newTextMesh = new THREE.Mesh(textGeometry, textMaterial);
-                    newTextMesh.position.copy(point);
-                    newTextMesh.position.z += 0.1; // Slightly above the clicked face
-                    face.object.parent.add(newTextMesh);
-                    setTextMesh(newTextMesh);
-                });
-            } else {
-                textMesh.position.copy(point);
-                textMesh.position.z += 0.1; // Ensure the text stays above the clicked face
-            }
-        }
-    };
-
-    return <Model dimensions={dimensions} onFaceClick={handleFaceClick} />;
+  return <OrbitControls ref={controlsRef} />;
 };
 
-// Main component for rendering the canvas and controls
-const ModelViewer = ({ dimensions }) => {
-    return (
-        <Canvas style={{ height: '500px', width: '100%' }}>
+const ModelViewer = ({ room }) => {
+  const [modelDimensions, setModelDimensions] = useState(null);
+  const [isInteriorView, setIsInteriorView] = useState(false);
+
+  // Use useMemo to create a stable reference for the room prop
+  const stableRoom = useMemo(() => room, [room?.filename]);
+
+  const toggleView = () => {
+    setIsInteriorView(!isInteriorView);
+  };
+
+  return (
+    <div className="model-viewer" style={{ width: '100%', height: '500px', position: 'relative' }}>
+      <Canvas>
+        <PerspectiveCamera makeDefault position={[0, 0, 10]} near={0.1} far={1000} fov={75} />
+        {stableRoom && stableRoom.filename ? (
+          <>
+            <CameraController dimensions={modelDimensions} isInteriorView={isInteriorView} />
             <ambientLight intensity={0.5} />
-            <directionalLight position={[5, 10, 5]} intensity={1} />
-            <Grid args={[100, 100]} position={[0, 0, 0]} color='lightblue' />
-            <ClickableModel dimensions={dimensions} />
-            <OrbitControls enableZoom={true} minDistance={1} maxDistance={50} enablePan={true} />
-        </Canvas>
-    );
+            <directionalLight position={[5, 5, 5]} intensity={1} />
+            <Room room={stableRoom} setModelDimensions={setModelDimensions} />
+          </>
+        ) : (
+          <ambientLight intensity={0.5} />
+        )}
+      </Canvas>
+      {stableRoom && stableRoom.filename && (
+        <button
+          onClick={toggleView}
+          style={{
+            position: 'absolute',
+            bottom: '10px',
+            left: '10px',
+            padding: '5px 10px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+          }}
+        >
+          {isInteriorView ? 'Switch to Exterior View' : 'Switch to Interior View'}
+        </button>
+      )}
+    </div>
+  );
 };
 
 export default ModelViewer;

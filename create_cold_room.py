@@ -1,59 +1,87 @@
-
 import bpy
 import sys
+import os
 
-# Get the dimensions from command line arguments
-args = sys.argv
-try:
-    width = float(args[args.index("--width") + 1])   # X-axis
-    height = float(args[args.index("--height") + 1])  # Y-axis
-    depth = float(args[args.index("--depth") + 1])    # Z-axis
-    unit = args[args.index("--unit") + 1]  # Get the unit of measurement
-except (ValueError, IndexError) as e:
-    print("Error: Missing or incorrect command line arguments.")
-    print("Make sure to provide --width, --height, --depth, and --unit.")
-    sys.exit(1)
+def parse_arguments():
+    args = sys.argv
+    try:
+        width = float(args[args.index("--width") + 1])
+        height = float(args[args.index("--height") + 1])
+        depth = float(args[args.index("--depth") + 1])
+        unit = args[args.index("--unit") + 1]
+        exterior_filename = args[args.index("--exterior_filename") + 1]
+        interior_filename = args[args.index("--interior_filename") + 1]
 
-print(f"Received dimensions: Height={height}, Depth={depth}, Width={width}, Unit={unit}")
+        print(f"Received dimensions: width={width}, height={height}, depth={depth}, unit={unit}")
+        return width, height, depth, unit, exterior_filename, interior_filename
+    except (ValueError, IndexError) as e:
+        print(f"Error: Missing or incorrect command line arguments. {str(e)}")
+        sys.exit(1)
 
-# Convert dimensions to centimeters
-if unit == "cm":
-    # Convert to centimeters
-    height *= 1  # Already in cm
-    depth *= 1
-    width *= 1
-elif unit == "mm":
-    # Convert mm to cm
-    height /= 10
-    depth /= 10
-    width /= 10
-elif unit == "inch":
-    # Convert inches to cm (1 inch = 2.54 cm)
-    height *= 2.54
-    depth *= 2.54
-    width *= 2.54
-else:
-    print("Error: Unknown unit provided. Please use 'mm', 'cm', or 'inch'.")
-    sys.exit(1)
+def scale_dimensions(width, height, depth):
+    max_dim = max(width, height, depth)
+    scale_factor = 10 / max_dim
+    
+    scaled_width = width * scale_factor
+    scaled_height = height * scale_factor
+    scaled_depth = depth * scale_factor
+    
+    return scaled_width, scaled_height, scaled_depth, scale_factor
 
-# Log the dimensions received
-print(f"Creating model with dimensions: Height={height}, Depth={depth}, Width={width}")
-
-# Function to create the outer room
-def create_outer_room(depth, width, height):
-    bpy.ops.object.select_all(action='DESELECT')
-    bpy.ops.object.select_by_type(type='MESH')
+def create_room(scaled_width, scaled_height, scaled_depth, is_interior=False):
+    bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete()
 
-    # Create a new cube for the outer room
+    # Create the room (a cube)
     bpy.ops.mesh.primitive_cube_add(size=1)
     outer_room = bpy.context.object
-    outer_room.scale = (width / 2000, depth / 2000, height / 2000)  # Adjusted to match the input
-    outer_room.location = (0, height / 2000, depth / 2000)  # Position at the correct height
+    outer_room.scale = (scaled_width / 2, scaled_depth / 2, scaled_height / 2)  # depth = z, height = y
+    outer_room.location = (0, 0, scaled_height / 2)
 
-    # Define the export path for the model
-    export_path = "C:/Users/brian/OneDrive/Desktop/UPFYP/Start/cold_room_project/models/cold_room_model.glb"
-    bpy.ops.export_scene.gltf(filepath=export_path)
-    print(f"Model exported to {export_path}")
+    # If interior view, remove the roof by deleting the top face
+    if is_interior:
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_non_manifold()
+        bpy.ops.mesh.delete(type='FACE')
+        bpy.ops.object.mode_set(mode='OBJECT')
 
-create_outer_room(depth, width, height)
+    # Apply transformations
+    bpy.ops.object.transform_apply(location=True, scale=True, rotation=True)
+    
+    return outer_room
+
+def main():
+    width, height, depth, unit, exterior_filename, interior_filename = parse_arguments()
+
+    if unit == "mm":
+        width, height, depth = width / 1000, height / 1000, depth / 1000
+    elif unit == "cm":
+        width, height, depth = width / 100, height / 100, depth / 100
+    elif unit == "inch":
+        width, height, depth = width * 0.0254, height * 0.0254, depth * 0.0254
+
+    scaled_width, scaled_height, scaled_depth, scale_factor = scale_dimensions(width, height, depth)
+
+    # Create exterior model
+    create_room(scaled_width, scaled_height, scaled_depth, is_interior=False)
+    try:
+        bpy.ops.export_scene.gltf(filepath=exterior_filename, export_format='GLB')
+        print(f"Exterior model exported to {exterior_filename}")
+    except Exception as e:
+        print(f"Failed to export exterior model: {e}")
+        sys.exit(1)
+
+    # Create interior model (remove the roof)
+    create_room(scaled_width, scaled_height, scaled_depth, is_interior=True)
+    try:
+        bpy.ops.export_scene.gltf(filepath=interior_filename, export_format='GLB')
+        print(f"Interior model exported to {interior_filename}")
+    except Exception as e:
+        print(f"Failed to export interior model: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

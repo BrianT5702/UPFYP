@@ -1,0 +1,18 @@
+{
+    "BT.glb": {
+        "filename": "BT.glb",
+        "name": "BT",
+        "width": "12222",
+        "height": "10000",
+        "depth": "3000",
+        "unit": "mm"
+    },
+    "Brian_Ting_Chin_Ing.glb": {
+        "filename": "Brian_Ting_Chin_Ing.glb",
+        "name": "Brian Ting Chin Ing",
+        "width": "12222",
+        "height": "7000",
+        "depth": "15000",
+        "unit": "mm"
+    }
+}

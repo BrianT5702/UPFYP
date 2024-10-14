@@ -1,82 +1,97 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import ModelViewer from './ModelViewer'; // Import ModelViewer component
+import React, { useState, useEffect, useCallback } from 'react';
+import ComplexRoomCreator from './components/ComplexRoomCreator';
+import RoomList from './components/RoomList';
+import ModelViewer from './ModelViewer';
 import './App.css';
 
 function App() {
-    const [roomDimensions, setRoomDimensions] = useState({
-        height: '',
-        depth: '',
-        width: '',
-        unit: 'mm' // Default unit is mm
-    });
-    const [modelCreated, setModelCreated] = useState(false); // State to track model creation
+    const [rooms, setRooms] = useState([]);
+    const [selectedRoom, setSelectedRoom] = useState(null);
 
-    const handleRoomDimensionsChange = (e) => {
-        const { name, value } = e.target;
-        setRoomDimensions({
-            ...roomDimensions,
-            [name]: value
-        });
+    useEffect(() => {
+        fetchRooms();
+    }, []);
+
+    const fetchRooms = async () => {
+        try {
+            const response = await fetch('http://localhost:5000/existing_rooms');
+            if (!response.ok) {
+                throw new Error('Error fetching rooms');
+            }
+            const data = await response.json();
+            setRooms(data.rooms);
+            if (data.rooms.length > 0) {
+                setSelectedRoom(data.rooms[0]);
+            }
+        } catch (error) {
+            console.error('Error fetching rooms:', error);
+        }
     };
 
-    const createRoomOverview = async () => {
-        const { height, depth, width, unit } = roomDimensions;
-        if (!height || !depth || !width) {
-            alert('Please enter valid dimensions for the room.');
-            return;
+    const handleRoomCreation = (newRoom) => {
+        setRooms(prevRooms => [...prevRooms, newRoom]);
+        setSelectedRoom(newRoom);
+        fetchRooms(); // Refetch rooms to get updated list
+    };
+
+    const handleRoomSelection = useCallback((room) => {
+        setSelectedRoom(room);
+    }, []);
+
+    const handleFeatureAdd = useCallback((newFeature) => {
+        if (selectedRoom) {
+            const updatedRoom = { 
+                ...selectedRoom, 
+                features: [...(selectedRoom.features || []), newFeature] 
+            };
+            setSelectedRoom(updatedRoom);
+            setRooms(prevRooms => prevRooms.map(room => 
+                room.filename === selectedRoom.filename ? updatedRoom : room
+            ));
         }
-    
-        // Make a request to the Flask backend to create the model
-        try {
-            const response = await axios.post('http://127.0.0.1:5000/create_model', {
-                height: parseFloat(height),
-                depth: parseFloat(depth),
-                width: parseFloat(width),
-                unit: roomDimensions.unit // Ensure the unit is included
-            });
-            console.log(response.data);
-            setModelCreated(true); // Set to true once the model is created
-        } catch (error) {
-            console.error('Error creating model:', error);
-            alert('Failed to create model.');
+    }, [selectedRoom]);
+
+    const handleFeatureMove = useCallback((index, newPosition) => {
+        if (selectedRoom) {
+            const updatedFeatures = [...selectedRoom.features];
+            updatedFeatures[index] = { ...updatedFeatures[index], position: newPosition };
+            const updatedRoom = { ...selectedRoom, features: updatedFeatures };
+            setSelectedRoom(updatedRoom);
+            setRooms(prevRooms => prevRooms.map(room => 
+                room.filename === selectedRoom.filename ? updatedRoom : room
+            ));
         }
-    };    
+    }, [selectedRoom]);
+
+    const handleFeatureResize = useCallback((index, newDimensions) => {
+        if (selectedRoom) {
+            const updatedFeatures = [...selectedRoom.features];
+            updatedFeatures[index] = { ...updatedFeatures[index], dimensions: newDimensions };
+            const updatedRoom = { ...selectedRoom, features: updatedFeatures };
+            setSelectedRoom(updatedRoom);
+            setRooms(prevRooms => prevRooms.map(room => 
+                room.filename === selectedRoom.filename ? updatedRoom : room
+            ));
+        }
+    }, [selectedRoom]);
 
     return (
-        <div className="App">
-            <h1>Create Cold Room Model</h1>
-            <div className="input-form">
-                <h3>Room Dimensions</h3>
-                <label>
-                    Height (Y-axis):
-                    <input type="number" name="height" value={roomDimensions.height} onChange={handleRoomDimensionsChange} />
-                </label>
-                <br />
-                <label>
-                    Depth (Z-axis):
-                    <input type="number" name="depth" value={roomDimensions.depth} onChange={handleRoomDimensionsChange} />
-                </label>
-                <br />
-                <label>
-                    Width (X-axis):
-                    <input type="number" name="width" value={roomDimensions.width} onChange={handleRoomDimensionsChange} />
-                </label>
-                <br />
-                <label>
-                    Unit:
-                    <select name="unit" value={roomDimensions.unit} onChange={handleRoomDimensionsChange}>
-                        <option value="mm">mm</option>
-                        <option value="cm">cm</option>
-                        <option value="inch">inch</option>
-                    </select>
-                </label>
-                <br />
-                <button onClick={createRoomOverview}>Create Room Overview</button>
-            </div>
-            {modelCreated && <ModelViewer dimensions={roomDimensions} />} {/* Pass dimensions to ModelViewer */}
-        </div>
-    );
+      <div className="app">
+          <div className="main-content">
+              <div className="left-panel">
+                  <ComplexRoomCreator onRoomCreate={handleRoomCreation} />
+                  <RoomList 
+                      rooms={rooms} 
+                      onRoomSelect={setSelectedRoom} 
+                      selectedRoom={selectedRoom} 
+                  />
+              </div>
+              <div className="right-panel">
+                  {selectedRoom && <ModelViewer room={selectedRoom} />}
+              </div>
+          </div>
+      </div>
+  );
 }
 
 export default App;
