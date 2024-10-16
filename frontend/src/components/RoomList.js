@@ -1,6 +1,6 @@
 import React from 'react';
 
-const RoomList = ({ rooms, onRoomSelect, selectedRoom }) => {
+const RoomList = ({ rooms, onRoomSelect, selectedRoom, onRoomDelete }) => {
     if (!rooms || rooms.length === 0) {
         return <div className="room-list"><p>No rooms available</p></div>;
     }
@@ -12,12 +12,13 @@ const RoomList = ({ rooms, onRoomSelect, selectedRoom }) => {
                 {rooms.map((room, index) => (
                     <li 
                         key={`${room.filename}-${index}`}
-                        onClick={() => onRoomSelect(room)}
                         className={selectedRoom && selectedRoom.filename === room.filename ? 'selected' : ''}
                     >
-                        <strong>{room.name}</strong>
+                        <strong onClick={() => onRoomSelect(room)}>{room.name}</strong>
                         <br />
                         Width: {room.width}m, Depth: {room.depth}m, Height: {room.height}m
+                        <br />
+                        <button onClick={() => onRoomDelete(room.id)}>Delete Room</button>
                     </li>
                 ))}
             </ul>

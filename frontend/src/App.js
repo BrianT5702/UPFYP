@@ -75,6 +75,25 @@ function App() {
         }
     }, [selectedRoom]);
 
+    // New function to handle room deletion
+    const handleRoomDelete = async (roomId) => {
+        try {
+            const response = await fetch(`http://localhost:5000/rooms/${roomId}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                // Remove the deleted room from the state
+                setRooms(prevRooms => prevRooms.filter(room => room.id !== roomId));
+                setSelectedRoom(null); // Clear selection after deletion
+            } else {
+                console.error('Error deleting room:', await response.json());
+            }
+        } catch (error) {
+            console.error('Error deleting room:', error);
+        }
+    };
+
     return (
       <div className="app">
           <div className="main-content">
@@ -84,6 +103,7 @@ function App() {
                       rooms={rooms} 
                       onRoomSelect={setSelectedRoom} 
                       selectedRoom={selectedRoom} 
+                      onRoomDelete={handleRoomDelete} // Pass the delete handler to RoomList
                   />
               </div>
               <div className="right-panel">

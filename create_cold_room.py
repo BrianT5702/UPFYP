@@ -38,14 +38,19 @@ def create_room(scaled_width, scaled_height, scaled_depth, is_interior=False):
     outer_room.scale = (scaled_width / 2, scaled_depth / 2, scaled_height / 2)  # depth = z, height = y
     outer_room.location = (0, 0, scaled_height / 2)
 
-    # If interior view, remove the roof by deleting the top face
+    # If interior view, remove the roof by selecting the top face
     if is_interior:
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')
+
+        # Switch to face selection mode and select the top face
+        bpy.ops.mesh.select_mode(type='FACE')
         bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.select_non_manifold()
-        bpy.ops.mesh.delete(type='FACE')
+
+        # Remove the top face (roof) using the known index for the top face
+        bpy.ops.mesh.select_non_manifold()  # Select the non-manifold edges (roof)
+        bpy.ops.mesh.delete(type='FACE')  # Delete the top face (roof)
+        
         bpy.ops.object.mode_set(mode='OBJECT')
 
     # Apply transformations
@@ -56,6 +61,7 @@ def create_room(scaled_width, scaled_height, scaled_depth, is_interior=False):
 def main():
     width, height, depth, unit, exterior_filename, interior_filename = parse_arguments()
 
+    # Convert units to meters if needed
     if unit == "mm":
         width, height, depth = width / 1000, height / 1000, depth / 1000
     elif unit == "cm":
@@ -63,6 +69,7 @@ def main():
     elif unit == "inch":
         width, height, depth = width * 0.0254, height * 0.0254, depth * 0.0254
 
+    # Scale dimensions for Blender
     scaled_width, scaled_height, scaled_depth, scale_factor = scale_dimensions(width, height, depth)
 
     # Create exterior model
