@@ -184,6 +184,28 @@ def get_model(filename):
     else:
         return jsonify({"error": "Model not found"}), 404
 
+@app.route('/rooms/<int:room_id>/features', methods=['POST'])
+def add_room_feature():  # Make sure this function name is unique
+    room = Room.query.get(room_id)
+    if not room:
+        return jsonify({"error": "Room not found"}), 404
+
+    data = request.json
+    feature_type = data.get('type')
+    position = data.get('position')
+
+    if not feature_type or not position:
+        return jsonify({"error": "Missing feature type or position"}), 400
+
+    room.features.append({
+        "type": feature_type,
+        "position": position
+    })
+
+    db.session.commit()
+
+    return jsonify({"status": "Feature added successfully", "room": room.to_dict()}), 200
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()

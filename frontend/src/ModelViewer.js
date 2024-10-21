@@ -1,197 +1,86 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { PerspectiveCamera, OrbitControls } from '@react-three/drei';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import React, { useState, useEffect, useRef } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, useGLTF, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
-import axios from 'axios';
 
-const Room = ({ room, isInteriorView, setModelDimensions, onAddFeature }) => {
-  const [model, setModel] = useState(null);
-  const groupRef = useRef();
+const Model = ({ url }) => {
+    const { scene } = useGLTF(url);
+    const modelRef = useRef();
 
-  useEffect(() => {
-    if (room) {
-        const filename = isInteriorView ? room.interior_filename : room.exterior_filename;
-
-        // Ensure filename is valid before making the request
-        if (filename) {
-            const url = `http://localhost:5000/models/${filename}?t=${Date.now()}`;
-            console.log('Fetching model from:', url);
-
-            new GLTFLoader().load(
-                url,
-                (gltf) => {
-                    console.log('Model loaded successfully:', gltf);
-                    setModel(gltf.scene);
-                },
-                undefined,
-                (err) => {
-                    console.error('Failed to load model:', err);
-                }
-            );
-        } else {
-            console.warn('Filename is undefined. No model to load.');
+    useFrame(() => {
+        if (modelRef.current) {
+            // Center the model
+            const box = new THREE.Box3().setFromObject(modelRef.current);
+            const center = box.getCenter(new THREE.Vector3());
+            modelRef.current.position.sub(center);
         }
-    }
-}, [room, isInteriorView]);
+    });
 
-  useEffect(() => {
-    if (model && groupRef.current) {
-      // Clear previous content
-      while (groupRef.current.children.length) {
-        groupRef.current.remove(groupRef.current.children[0]);
-      }
-
-      // Add the new model
-      groupRef.current.add(model);
-
-      // Calculate bounding box to find dimensions
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-
-      // Set the position to ensure the model is always centered in the scene
-      model.position.set(-center.x, -center.y, -center.z);
-
-      // Pass dimensions to parent component
-      setModelDimensions({ size, center });
-    }
-  }, [model, setModelDimensions]);
-
-  const handleClick = useCallback((event) => {
-    if (isInteriorView) {
-      event.stopPropagation();
-      const intersects = event.intersects;
-      if (intersects.length > 0) {
-        const point = intersects[0].point;
-        onAddFeature(point);
-      }
-    }
-  }, [isInteriorView, onAddFeature]);
-
-  return <group ref={groupRef} onClick={handleClick} />;
+    return <primitive ref={modelRef} object={scene} />;
 };
 
-const CameraController = ({ dimensions, isInteriorView }) => {
-  const { camera } = useThree();
-  const controlsRef = useRef();
+const CameraSetup = () => {
+    const { camera, scene } = useThree();
+    
+    useEffect(() => {
+        if (scene.children.length > 0) {
+            const box = new THREE.Box3().setFromObject(scene);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
 
-  useEffect(() => {
-    if (dimensions && controlsRef.current) {
-      const { size, center } = dimensions;
-      if (isInteriorView) {
-        // Set camera to interior view
-        camera.position.set(center.x, size.y / 2, center.z);
-        controlsRef.current.target.set(center.x, size.y / 2, center.z);
-      } else {
-        // Set camera to exterior view
-        const distance = Math.max(size.x, size.y, size.z) * 1.5;
-        camera.position.set(distance, distance, distance);
-        controlsRef.current.target.set(0, 0, 0);
-      }
-      controlsRef.current.update();
-    }
-  }, [dimensions, isInteriorView, camera]);
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+            let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
 
-  return <OrbitControls ref={controlsRef} />;
-};
+            cameraZ *= 1.5; // Zoom out a little so object fits in view
 
-const Feature = ({ type, position }) => {
-  let geometry, material;
-
-  switch (type) {
-    case 'door':
-      geometry = new THREE.BoxGeometry(1, 2, 0.1);
-      material = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
-      break;
-    case 'partition':
-      geometry = new THREE.BoxGeometry(2, 3, 0.1);
-      material = new THREE.MeshBasicMaterial({ color: 0xD3D3D3 });
-      break;
-    default:
-      return null;
-  }
-
-  return (
-    <mesh geometry={geometry} material={material} position={position} />
-  );
-};
-
-const ModelViewer = ({ room: initialRoom }) => {
-  const [modelDimensions, setModelDimensions] = useState(null);
-  const [isInteriorView, setIsInteriorView] = useState(false);
-  const [features, setFeatures] = useState([]);
-  const [currentFeature, setCurrentFeature] = useState('door');
-  const [room, setRoom] = useState(initialRoom);
-
-  // Only fetch room data if the room changes and has not been loaded yet
-  useEffect(() => {
-    if (initialRoom && initialRoom.id && (!room || room.id !== initialRoom.id)) {
-      const fetchRoom = async () => {
-        try {
-          const response = await axios.get(`http://localhost:5000/rooms/${initialRoom.id}`);
-          setRoom(response.data);
-          setFeatures(response.data.features || []);
-        } catch (error) {
-          console.error('Error fetching room:', error);
+            camera.position.set(center.x, center.y, center.z + cameraZ);
+            camera.lookAt(center);
+            camera.updateProjectionMatrix();
         }
-      };
+    }, [camera, scene]);
 
-      fetchRoom();
+    return null;
+};
+
+const ModelViewer = ({ room }) => {
+    const [isInteriorView, setIsInteriorView] = useState(true);
+    const [modelUrl, setModelUrl] = useState(null);
+
+    useEffect(() => {
+        if (room) {
+            const filename = isInteriorView ? room.interior_filename : room.exterior_filename;
+            setModelUrl(`http://localhost:5000/models/${filename}`);
+        }
+    }, [room, isInteriorView]);
+
+    const toggleView = () => {
+        setIsInteriorView(!isInteriorView);
+    };
+
+    if (!room) {
+        return <div className="no-room-selected">
+            <p>No room selected. Please select a room from the list.</p>
+        </div>;
     }
-  }, [initialRoom, room]);
 
-  const toggleView = () => {
-    setIsInteriorView(!isInteriorView);
-  };
-
-  const handleAddFeature = useCallback(async (position) => {
-    if (room && room.id) {
-      try {
-        const response = await axios.post(`http://localhost:5000/rooms/${room.id}/features`, {
-          type: currentFeature,
-          position: [position.x, position.y, position.z]
-        });
-        setRoom(response.data.room);
-        setFeatures(response.data.room.features || []);
-      } catch (error) {
-        console.error('Error adding feature:', error);
-      }
-    }
-  }, [room, currentFeature]);
-
-  return (
-    <div className="model-viewer" style={{ width: '100%', height: '500px', position: 'relative' }}>
-      <Canvas>
-        <PerspectiveCamera makeDefault position={[0, 0, 10]} near={0.1} far={1000} fov={75} />
-        <CameraController dimensions={modelDimensions} isInteriorView={isInteriorView} />
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[5, 5, 5]} intensity={1} />
-        {room && room.exterior_filename && (
-          <Room 
-            room={room} 
-            isInteriorView={isInteriorView} 
-            setModelDimensions={setModelDimensions}
-            onAddFeature={handleAddFeature}
-          />
-        )}
-        {isInteriorView && features.map((feature, index) => (
-          <Feature key={index} {...feature} />
-        ))}
-      </Canvas>
-      <div style={{ position: 'absolute', bottom: '10px', left: '10px' }}>
-        <button onClick={toggleView}>
-          {isInteriorView ? 'Switch to Exterior View' : 'Switch to Interior View'}
-        </button>
-        {isInteriorView && (
-          <>
-            <button onClick={() => setCurrentFeature('door')}>Add Door</button>
-            <button onClick={() => setCurrentFeature('partition')}>Add Partition</button>
-          </>
-        )}
-      </div>
-    </div>
-  );
+    return (
+        <div className="model-viewer" style={{ width: '100%', height: '100%' }}>
+            <Canvas>
+                <PerspectiveCamera makeDefault fov={75} near={0.1} far={1000} />
+                <CameraSetup />
+                <ambientLight intensity={0.5} />
+                <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
+                <OrbitControls target={[0, 0, 0]} />
+                {modelUrl && <Model url={modelUrl} />}
+            </Canvas>
+            <div style={{ position: 'absolute', bottom: '10px', left: '10px' }}>
+                <button onClick={toggleView}>
+                    {isInteriorView ? 'Switch to Exterior View' : 'Switch to Interior View'}
+                </button>
+            </div>
+        </div>
+    );
 };
 
 export default ModelViewer;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import ComplexRoomCreator from './components/ComplexRoomCreator';
 import RoomList from './components/RoomList';
 import ModelViewer from './ModelViewer';
@@ -20,9 +20,6 @@ function App() {
             }
             const data = await response.json();
             setRooms(data.rooms);
-            if (data.rooms.length > 0) {
-                setSelectedRoom(data.rooms[0]);
-            }
         } catch (error) {
             console.error('Error fetching rooms:', error);
         }
@@ -31,51 +28,13 @@ function App() {
     const handleRoomCreation = (newRoom) => {
         setRooms(prevRooms => [...prevRooms, newRoom]);
         setSelectedRoom(newRoom);
-        fetchRooms(); // Refetch rooms to get updated list
+        fetchRooms();
     };
 
-    const handleRoomSelection = useCallback((room) => {
+    const handleRoomSelection = (room) => {
         setSelectedRoom(room);
-    }, []);
+    };
 
-    const handleFeatureAdd = useCallback((newFeature) => {
-        if (selectedRoom) {
-            const updatedRoom = { 
-                ...selectedRoom, 
-                features: [...(selectedRoom.features || []), newFeature] 
-            };
-            setSelectedRoom(updatedRoom);
-            setRooms(prevRooms => prevRooms.map(room => 
-                room.filename === selectedRoom.filename ? updatedRoom : room
-            ));
-        }
-    }, [selectedRoom]);
-
-    const handleFeatureMove = useCallback((index, newPosition) => {
-        if (selectedRoom) {
-            const updatedFeatures = [...selectedRoom.features];
-            updatedFeatures[index] = { ...updatedFeatures[index], position: newPosition };
-            const updatedRoom = { ...selectedRoom, features: updatedFeatures };
-            setSelectedRoom(updatedRoom);
-            setRooms(prevRooms => prevRooms.map(room => 
-                room.filename === selectedRoom.filename ? updatedRoom : room
-            ));
-        }
-    }, [selectedRoom]);
-
-    const handleFeatureResize = useCallback((index, newDimensions) => {
-        if (selectedRoom) {
-            const updatedFeatures = [...selectedRoom.features];
-            updatedFeatures[index] = { ...updatedFeatures[index], dimensions: newDimensions };
-            const updatedRoom = { ...selectedRoom, features: updatedFeatures };
-            setSelectedRoom(updatedRoom);
-            setRooms(prevRooms => prevRooms.map(room => 
-                room.filename === selectedRoom.filename ? updatedRoom : room
-            ));
-        }
-    }, [selectedRoom]);
-
-    // New function to handle room deletion
     const handleRoomDelete = async (roomId) => {
         try {
             const response = await fetch(`http://localhost:5000/rooms/${roomId}`, {
@@ -83,9 +42,9 @@ function App() {
             });
 
             if (response.ok) {
-                // Remove the deleted room from the state
                 setRooms(prevRooms => prevRooms.filter(room => room.id !== roomId));
-                setSelectedRoom(null); // Clear selection after deletion
+                setSelectedRoom(null);
+                fetchRooms();
             } else {
                 console.error('Error deleting room:', await response.json());
             }
@@ -95,23 +54,23 @@ function App() {
     };
 
     return (
-      <div className="app">
-          <div className="main-content">
-              <div className="left-panel">
-                  <ComplexRoomCreator onRoomCreate={handleRoomCreation} />
-                  <RoomList 
-                      rooms={rooms} 
-                      onRoomSelect={setSelectedRoom} 
-                      selectedRoom={selectedRoom} 
-                      onRoomDelete={handleRoomDelete} // Pass the delete handler to RoomList
-                  />
-              </div>
-              <div className="right-panel">
-                  {selectedRoom && <ModelViewer room={selectedRoom} />}
-              </div>
-          </div>
-      </div>
-  );
+        <div className="app">
+            <div className="main-content">
+                <div className="left-panel">
+                    <ComplexRoomCreator onRoomCreate={handleRoomCreation} />
+                    <RoomList 
+                        rooms={rooms} 
+                        onRoomSelect={handleRoomSelection} 
+                        selectedRoom={selectedRoom} 
+                        onRoomDelete={handleRoomDelete} 
+                    />
+                </div>
+                <div className="right-panel">
+                    <ModelViewer room={selectedRoom} />
+                </div>
+            </div>
+        </div>
+    );
 }
 
 export default App;

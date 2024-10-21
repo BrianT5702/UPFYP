@@ -28,30 +28,64 @@ def scale_dimensions(width, height, depth):
     
     return scaled_width, scaled_height, scaled_depth, scale_factor
 
-def create_room(scaled_width, scaled_height, scaled_depth, is_interior=False):
+def create_interior_room(scaled_width, scaled_height, scaled_depth):
+    """Create a room with proper walls and ceiling removed for interior visualization."""
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete()
 
-    # Create the room (a cube)
+    # Create the base of the room (floor)
+    bpy.ops.mesh.primitive_plane_add(size=1)
+    floor = bpy.context.object
+    floor.scale = (scaled_width / 2, scaled_depth / 2, 1)
+    floor.location = (0, 0, 0)
+
+    # Create back wall
+    bpy.ops.mesh.primitive_plane_add(size=1)
+    back_wall = bpy.context.object
+    back_wall.scale = (scaled_width / 2, scaled_height / 2, 1)
+    back_wall.location = (0, -scaled_depth / 2, scaled_height / 2)
+    back_wall.rotation_euler[0] = 1.5708  # 90 degrees in radians
+
+    # Create left wall
+    bpy.ops.mesh.primitive_plane_add(size=1)
+    left_wall = bpy.context.object
+    left_wall.scale = (scaled_depth / 2, scaled_height / 2, 1)
+    left_wall.location = (-scaled_width / 2, 0, scaled_height / 2)
+    left_wall.rotation_euler[1] = 1.5708  # 90 degrees in radians
+
+    # Create right wall
+    bpy.ops.mesh.primitive_plane_add(size=1)
+    right_wall = bpy.context.object
+    right_wall.scale = (scaled_depth / 2, scaled_height / 2, 1)
+    right_wall.location = (scaled_width / 2, 0, scaled_height / 2)
+    right_wall.rotation_euler[1] = 1.5708  # 90 degrees in radians
+
+    # Create ceiling (optional)
+    bpy.ops.mesh.primitive_plane_add(size=1)
+    ceiling = bpy.context.object
+    ceiling.scale = (scaled_width / 2, scaled_depth / 2, 1)
+    ceiling.location = (0, 0, scaled_height)
+
+    # Join all objects into one room
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.context.view_layer.objects.active = floor
+    bpy.ops.object.join()
+
+    # Apply transformations
+    bpy.ops.object.transform_apply(location=True, scale=True, rotation=True)
+
+    return bpy.context.object
+
+def create_exterior_room(scaled_width, scaled_height, scaled_depth):
+    """Create the exterior view of the room."""
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+    # Create the room (a cube with roof)
     bpy.ops.mesh.primitive_cube_add(size=1)
     outer_room = bpy.context.object
-    outer_room.scale = (scaled_width / 2, scaled_depth / 2, scaled_height / 2)  # depth = z, height = y
+    outer_room.scale = (scaled_width / 2, scaled_depth / 2, scaled_height / 2)
     outer_room.location = (0, 0, scaled_height / 2)
-
-    # If interior view, remove the roof by selecting the top face
-    if is_interior:
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.select_all(action='DESELECT')
-
-        # Switch to face selection mode and select the top face
-        bpy.ops.mesh.select_mode(type='FACE')
-        bpy.ops.object.mode_set(mode='EDIT')
-
-        # Remove the top face (roof) using the known index for the top face
-        bpy.ops.mesh.select_non_manifold()  # Select the non-manifold edges (roof)
-        bpy.ops.mesh.delete(type='FACE')  # Delete the top face (roof)
-        
-        bpy.ops.object.mode_set(mode='OBJECT')
 
     # Apply transformations
     bpy.ops.object.transform_apply(location=True, scale=True, rotation=True)
@@ -72,22 +106,26 @@ def main():
     # Scale dimensions for Blender
     scaled_width, scaled_height, scaled_depth, scale_factor = scale_dimensions(width, height, depth)
 
-    # Create exterior model
-    create_room(scaled_width, scaled_height, scaled_depth, is_interior=False)
-    try:
-        bpy.ops.export_scene.gltf(filepath=exterior_filename, export_format='GLB')
-        print(f"Exterior model exported to {exterior_filename}")
-    except Exception as e:
-        print(f"Failed to export exterior model: {e}")
-        sys.exit(1)
-
-    # Create interior model (remove the roof)
-    create_room(scaled_width, scaled_height, scaled_depth, is_interior=True)
+    # Create and export interior model
+    interior_room = create_interior_room(scaled_width, scaled_height, scaled_depth)
     try:
         bpy.ops.export_scene.gltf(filepath=interior_filename, export_format='GLB')
         print(f"Interior model exported to {interior_filename}")
     except Exception as e:
         print(f"Failed to export interior model: {e}")
+        sys.exit(1)
+
+    # Clear the scene
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+    # Create and export exterior model
+    exterior_room = create_exterior_room(scaled_width, scaled_height, scaled_depth)
+    try:
+        bpy.ops.export_scene.gltf(filepath=exterior_filename, export_format='GLB')
+        print(f"Exterior model exported to {exterior_filename}")
+    except Exception as e:
+        print(f"Failed to export exterior model: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

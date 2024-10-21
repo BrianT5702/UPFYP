@@ -14,35 +14,31 @@ html, body {
 }
 
 .main-content {
-  display: flex;            /* Use flexbox for layout */
-  flex-direction: row;     /* Ensure items are in a row */
-  flex: 1;                 /* Allow it to take the remaining height */
-  overflow: hidden;        /* Prevent overflow */
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
 }
 
 .left-panel {
-  width: 400px;           /* Fixed width for the left panel */
-  background-color: #e0e0e0;
+  width: 400px;  /* Adjust to fit the layout */
+  background-color: #f0f0f0;
   padding: 20px;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-  overflow-y: auto;       /* Allow scrolling for overflow */
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
 }
 
 .right-panel {
-  flex: 1;                /* Take the remaining space */
-  display: flex;          /* Allow flexbox properties */
-  flex-direction: column; /* Stack content vertically */
-  overflow: hidden;       /* Prevent overflow */
-  min-height: 500px;     /* Set minimum height */
+  flex: 1;
+  padding: 20px;
+  position: relative;
 }
 
 .no-room-selected {
-  flex: 1; /* Take the full space */
-  display: flex; /* Flexbox to center content */
-  justify-content: center; /* Center horizontally */
-  align-items: center; /* Center vertically */
-  font-size: 20px; /* Adjust font size as needed */
-  text-align: center; /* Center text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 18px;
+  color: #555;
 }
 
 h1 {
